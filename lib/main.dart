@@ -1,23 +1,185 @@
+import 'dart:io';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 
 void main() {
   runApp(const TaskManagerApp());
 }
 
 // --- PALETA DE COLORES ---
-const Color primaryBlue = Color(0xFF5A67D8); // Azul violeta moderno
-const Color backgroundColor = Color.fromARGB(
-  255,
-  100,
-  146,
-  214,
-); // Fondo gris claro
-const Color textColor = Color(0xFF2D3748); // Gris oscuro elegante
-const Color errorRed = Color(0xFFE53E3E); // Rojo cálido
-const Color accentGreen = Color(0xFF48BB78); // Verde éxito
-const Color accentYellow = Color(0xFFD69E2E); // Amarillo prioridad
+const Color primaryBlue = Color(0xFF5A67D8);
+const Color backgroundColor = Color.fromARGB(255, 100, 146, 214);
+const Color textColor = Color(0xFF2D3748);
+const Color errorRed = Color(0xFFE53E3E);
+const Color accentGreen = Color(0xFF48BB78);
+const Color accentYellow = Color(0xFFD69E2E);
 
-// --- APP PRINCIPAL ---
+// ---------------------------------------------------------
+//  WIDGETS ADAPTATIVOS
+// ---------------------------------------------------------
+
+class AdaptiveButton extends StatelessWidget {
+  final String text;
+  final VoidCallback onPressed;
+
+  const AdaptiveButton({
+    super.key,
+    required this.text,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isIOS =
+        Theme.of(context).platform == TargetPlatform.iOS && !kIsWeb;
+
+    if (isIOS) {
+      return CupertinoButton.filled(
+        padding: const EdgeInsets.symmetric(vertical: 15),
+        child: Text(text),
+        onPressed: onPressed,
+      );
+    }
+
+    // Material (Android / Web)
+    return ElevatedButton(onPressed: onPressed, child: Text(text));
+  }
+}
+
+class AdaptiveTextField extends StatelessWidget {
+  final String label;
+  final IconData icon;
+
+  const AdaptiveTextField({super.key, required this.label, required this.icon});
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isIOS =
+        Theme.of(context).platform == TargetPlatform.iOS || kIsWeb;
+
+    if (isIOS) {
+      return CupertinoTextField(
+        prefix: Padding(
+          padding: const EdgeInsets.all(8),
+          child: Icon(icon, color: primaryBlue),
+        ),
+        padding: const EdgeInsets.all(16),
+        placeholder: label,
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.black26),
+          borderRadius: BorderRadius.circular(8),
+        ),
+      );
+    }
+
+    return TextField(
+      decoration: InputDecoration(
+        prefixIcon: Icon(icon, color: primaryBlue),
+        labelText: label,
+        labelStyle: const TextStyle(color: Colors.black54),
+      ),
+    );
+  }
+}
+
+class AdaptiveDropdown extends StatefulWidget {
+  final List<String> items;
+  final String defaultValue;
+
+  const AdaptiveDropdown({
+    super.key,
+    required this.items,
+    required this.defaultValue,
+  });
+
+  @override
+  State<AdaptiveDropdown> createState() => _AdaptiveDropdownState();
+}
+
+class _AdaptiveDropdownState extends State<AdaptiveDropdown> {
+  late String selected;
+
+  @override
+  void initState() {
+    super.initState();
+    selected = widget.defaultValue;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isIOS =
+        Theme.of(context).platform == TargetPlatform.iOS || kIsWeb;
+
+    // --- iOS (forzado en web también) ---
+    if (isIOS) {
+      return GestureDetector(
+        onTap: () {
+          showCupertinoModalPopup(
+            context: context,
+            builder: (_) => Container(
+              height: 250,
+              color: Colors.white,
+              child: CupertinoPicker(
+                itemExtent: 32,
+                scrollController: FixedExtentScrollController(
+                  initialItem: widget.items.indexOf(selected),
+                ),
+                onSelectedItemChanged: (index) {
+                  setState(() => selected = widget.items[index]);
+                },
+                children: widget.items.map((e) => Text(e)).toList(),
+              ),
+            ),
+          );
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            border: Border.all(color: Colors.black26),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text("📌 $selected", style: const TextStyle(fontSize: 16)),
+              const Icon(Icons.keyboard_arrow_down, color: primaryBlue),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // --- Android / Material ---
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12.0),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: Colors.black26),
+        borderRadius: BorderRadius.circular(8.0),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          isExpanded: true,
+          value: selected,
+          items: widget.items
+              .map(
+                (value) =>
+                    DropdownMenuItem(value: value, child: Text("📌 $value")),
+              )
+              .toList(),
+          onChanged: (v) => setState(() => selected = v!),
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------
+//  APP PRINCIPAL
+// ---------------------------------------------------------
+
 class TaskManagerApp extends StatelessWidget {
   const TaskManagerApp({super.key});
 
@@ -38,20 +200,6 @@ class TaskManagerApp extends StatelessWidget {
             color: Colors.white,
           ),
         ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: primaryBlue,
-            foregroundColor: Colors.white,
-            minimumSize: const Size(double.infinity, 52),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-            ),
-            textStyle: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ),
       ),
       initialRoute: '/',
       routes: {
@@ -64,7 +212,10 @@ class TaskManagerApp extends StatelessWidget {
   }
 }
 
-// --- PANTALLA 1: INICIO ---
+// ---------------------------------------------------------
+//  PANTALLA 1: INICIO
+// ---------------------------------------------------------
+
 class TaskManagerScreen extends StatelessWidget {
   const TaskManagerScreen({super.key});
 
@@ -76,7 +227,7 @@ class TaskManagerScreen extends StatelessWidget {
           padding: const EdgeInsets.all(40.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
-            children: <Widget>[
+            children: [
               const Spacer(flex: 2),
               const Text(
                 '🗓️ Gestor de Tareas',
@@ -92,11 +243,11 @@ class TaskManagerScreen extends StatelessWidget {
                 style: TextStyle(fontSize: 16, color: Colors.black54),
               ),
               const Spacer(flex: 1),
-              ElevatedButton(
+              AdaptiveButton(
+                text: '🚀 Entrar',
                 onPressed: () {
                   Navigator.pushReplacementNamed(context, '/menu');
                 },
-                child: const Text('🚀 Entrar'),
               ),
               const Spacer(flex: 2),
             ],
@@ -107,7 +258,10 @@ class TaskManagerScreen extends StatelessWidget {
   }
 }
 
-// --- PANTALLA 2: MENÚ ---
+// ---------------------------------------------------------
+//  PANTALLA 2: MENÚ
+// ---------------------------------------------------------
+
 class MainMenuScreen extends StatelessWidget {
   const MainMenuScreen({super.key});
 
@@ -118,29 +272,25 @@ class MainMenuScreen extends StatelessWidget {
       body: Padding(
         padding: const EdgeInsets.all(24.0),
         child: Column(
-          children: <Widget>[
+          children: [
             _MenuItem(
               emoji: "🏠",
               title: 'Home',
               onTap: () {
                 Navigator.of(
                   context,
-                ).pushNamedAndRemoveUntil('/', (route) => false);
+                ).pushNamedAndRemoveUntil('/', (r) => false);
               },
             ),
             _MenuItem(
               emoji: "👤",
               title: 'Profile',
-              onTap: () {
-                Navigator.pushNamed(context, '/profile');
-              },
+              onTap: () => Navigator.pushNamed(context, '/profile'),
             ),
             _MenuItem(
               emoji: "📝",
               title: 'Tareas',
-              onTap: () {
-                Navigator.pushNamed(context, '/tasks');
-              },
+              onTap: () => Navigator.pushNamed(context, '/tasks'),
             ),
           ],
         ),
@@ -149,7 +299,6 @@ class MainMenuScreen extends StatelessWidget {
   }
 }
 
-// Ítem del menú con emoji
 class _MenuItem extends StatelessWidget {
   final String title;
   final String emoji;
@@ -157,8 +306,8 @@ class _MenuItem extends StatelessWidget {
 
   const _MenuItem({
     required this.title,
-    required this.onTap,
     required this.emoji,
+    required this.onTap,
   });
 
   @override
@@ -166,13 +315,13 @@ class _MenuItem extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 18.0, horizontal: 10),
+        padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 10),
         decoration: const BoxDecoration(
-          border: Border(bottom: BorderSide(color: Colors.black12, width: 0.5)),
+          border: Border(bottom: BorderSide(color: Colors.black12)),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: <Widget>[
+          children: [
             Text(
               "$emoji  $title",
               style: const TextStyle(fontSize: 20, color: textColor),
@@ -189,7 +338,10 @@ class _MenuItem extends StatelessWidget {
   }
 }
 
-// --- PANTALLA 3: REGISTRO DE USUARIO ---
+// ---------------------------------------------------------
+//  PANTALLA 3: REGISTRO DE USUARIO
+// ---------------------------------------------------------
+
 class UserRegistrationScreen extends StatelessWidget {
   const UserRegistrationScreen({super.key});
 
@@ -201,43 +353,14 @@ class UserRegistrationScreen extends StatelessWidget {
         padding: const EdgeInsets.all(32.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            TextField(
-              decoration: InputDecoration(
-                prefixIcon: const Icon(
-                  Icons.person_outline,
-                  color: primaryBlue,
-                ),
-                labelText: 'Nombre',
-                labelStyle: const TextStyle(color: Colors.black54),
-                enabledBorder: const UnderlineInputBorder(
-                  borderSide: BorderSide(color: Colors.black26),
-                ),
-                focusedBorder: const UnderlineInputBorder(
-                  borderSide: BorderSide(color: primaryBlue, width: 2),
-                ),
-              ),
-            ),
+          children: [
+            AdaptiveTextField(label: 'Nombre', icon: Icons.person_outline),
             const SizedBox(height: 30),
-            TextField(
-              decoration: InputDecoration(
-                prefixIcon: const Icon(Icons.work_outline, color: accentGreen),
-                labelText: 'Ocupación',
-                labelStyle: const TextStyle(color: Colors.black54),
-                enabledBorder: const UnderlineInputBorder(
-                  borderSide: BorderSide(color: Colors.black26),
-                ),
-                focusedBorder: const UnderlineInputBorder(
-                  borderSide: BorderSide(color: primaryBlue, width: 2),
-                ),
-              ),
-            ),
+            AdaptiveTextField(label: 'Ocupación', icon: Icons.work_outline),
             const SizedBox(height: 60),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              child: const Text('✅ Continuar'),
+            AdaptiveButton(
+              text: "✅ Continuar",
+              onPressed: () => Navigator.pop(context),
             ),
           ],
         ),
@@ -246,7 +369,10 @@ class UserRegistrationScreen extends StatelessWidget {
   }
 }
 
-// --- PANTALLA 4: REGISTRO DE TAREAS ---
+// ---------------------------------------------------------
+//  PANTALLA 4: REGISTRO DE TAREAS
+// ---------------------------------------------------------
+
 class TaskRegistrationScreen extends StatelessWidget {
   const TaskRegistrationScreen({super.key});
 
@@ -258,35 +384,10 @@ class TaskRegistrationScreen extends StatelessWidget {
         padding: const EdgeInsets.all(32.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            // Dropdown simulado
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12.0),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                border: Border.all(color: Colors.black26),
-                borderRadius: BorderRadius.circular(8.0),
-              ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  isExpanded: true,
-                  value: 'Trabajo',
-                  icon: const Icon(
-                    Icons.keyboard_arrow_down,
-                    color: primaryBlue,
-                  ),
-                  style: const TextStyle(fontSize: 16, color: textColor),
-                  items: <String>['Trabajo', 'Personal', 'Estudio']
-                      .map<DropdownMenuItem<String>>((String value) {
-                        return DropdownMenuItem<String>(
-                          value: value,
-                          child: Text("📌 $value"),
-                        );
-                      })
-                      .toList(),
-                  onChanged: (String? newValue) {},
-                ),
-              ),
+          children: [
+            AdaptiveDropdown(
+              items: ['Trabajo', 'Personal', 'Estudio'],
+              defaultValue: 'Trabajo',
             ),
             const SizedBox(height: 30),
             const TaskListItem(
@@ -308,7 +409,10 @@ class TaskRegistrationScreen extends StatelessWidget {
   }
 }
 
-// --- ÍTEM DE TAREA ---
+// ---------------------------------------------------------
+//  ÍTEM DE TAREA
+// ---------------------------------------------------------
+
 class TaskListItem extends StatelessWidget {
   final String taskName;
   final String priority;
@@ -333,9 +437,9 @@ class TaskListItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12.0),
+      padding: const EdgeInsets.symmetric(vertical: 12),
       child: Row(
-        children: <Widget>[
+        children: [
           const Icon(Icons.check_circle_outline, color: primaryBlue),
           const SizedBox(width: 15),
           Expanded(
